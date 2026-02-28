@@ -1,0 +1,205 @@
+{
+  "name": "News Update Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "4617e4c9-1087-4f96-83b1-2e7fcf91a2e6",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "https://api.thenewsapi.com/v1/news/top",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "api_token",
+              "value": "ey289xT7uhShP3uSM3xQQVEWdxud2RO6zHAq9KaB"
+            },
+            {
+              "name": "locale",
+              "value": "pk"
+            },
+            {
+              "name": "language",
+              "value": "en"
+            },
+            {
+              "name": "limit",
+              "value": "3"
+            },
+            {
+              "name": "categories",
+              "value": "tech, sports, entertainment"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "ed32da73-703e-479c-973a-49d79a205fb4",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{$json[\"prompt\"]}}\n",
+        "options": {
+          "systemMessage": "You are a summarization AI assistant. Your job is to take multiple news articles provided as structured data and summarize them in clear, human-readable language using well-formatted paragraphs and section headings.\n\nYour output should:\n\n- Group articles by category (e.g., Technology, Politics, World News).\n- Use a clear, **natural-language heading** (e.g., \"Technology News\", \"World Affairs\") instead of markdown like \"##\" and \"**\".\n- Under each category, write short paragraph summaries for each article.\n- Paraphrase content naturally — don’t copy the original title or description word-for-word.\n- Make the summary easy to skim and informative for users who don’t want to read full news articles.\n\n- Avoid including raw metadata, URLs, or bullet lists.\n\nFocus on clarity, readability, and professionalism — as if you are creating a daily news digest for a general audience.\n\nOutput must be in proper HTML format."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.1,
+      "position": [
+        608,
+        0
+      ],
+      "id": "6f690176-af64-4d36-a011-6b542c96a2e9",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-20b:free",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        608,
+        192
+      ],
+      "id": "2e6403b0-79ed-4388-a4d5-fc3c182a9dbd",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "7SChN30vNW6fT5el",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json.data || [];\n\nconst articles = data.map((item, index) => {\n  const category = item.categories && item.categories.length > 0\n    ? item.categories[item.categories.length - 1]\n    : 'General';\n\n  return `${index + 1}. **Title**: ${item.title}\n**Description**: ${item.description || 'No description available.'}\n**Category**: ${category}\n`;\n});\n\nreturn [\n  {\n    json: {\n      prompt: `Summarize the following news articles grouped by category with proper headings and readable paragraph summaries. Avoid copying content verbatim. Use natural language and write for a general reader.\n\nHere are the articles:\n\n${articles.join('\\n\\n')}\n`\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "fc6306f5-9bb1-452e-8136-1be77fcb0ab3",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "sendTo": "mohammadtahakhan20@gmail.com",
+        "subject": "News Update!",
+        "message": "={{ $json.output }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        960,
+        0
+      ],
+      "id": "8347778c-2748-4b53-a315-a75728a99e8b",
+      "name": "Send a message",
+      "webhookId": "38275384-1e4c-493d-85c5-e064750d50a1",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Xw3owhvBP65MjH6R",
+          "name": "Gmail account 2"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "dc7e4166-385a-4327-a84a-87057d54234f",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "d2dd7aee2903f349d82142213f3f14ae86f289a921814135955e3ddb7e9e3419"
+  },
+  "id": "YOlVSa2TUM5MzOhq",
+  "tags": []
+}
